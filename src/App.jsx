@@ -319,7 +319,7 @@ function SouthBrazilMap({ schoolsByState }) {
       <div className="map-container">
         {/* Map Image */}
         <img 
-          src="/mapa-sul.png" 
+          src="./mapa-sul.png" 
           alt="Mapa do Sul do Brasil" 
           className="map-image"
         />
@@ -591,13 +591,13 @@ function ActionsPage() {
   );
 }
 
-function UnitsPage({ onSelect, schoolsList }) {
+function UnitsPage({ onSelect, schoolsList, onOpenModal }) {
   return (
     <>
       <h2 className="page-section-title">Todas as Unidades</h2>
       <div className="units-grid">
         {schoolsList.map(s => (
-          <button key={s.id} className="unit-card" onClick={() => onSelect(s)}>
+          <button key={s.id} className="unit-card" onClick={() => onOpenModal(s)}>
             <div className="unit-card-header">
               <div className="unit-card-icon"><School size={20} /></div>
               <span className="unit-card-state">{s.state}</span>
@@ -757,7 +757,98 @@ function ExportPage() {
     </>
   );
 }
+function SchoolModal({ school, onClose, onNavigateToOverview }) {
+  if (!school) return null;
 
+  // Find max action count for the horizontal bar chart
+  const maxActionCount = Math.max(...school.actions.map(a => a.count), 1);
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}>
+          <X size={20} />
+        </button>
+        
+        <div className="modal-header">
+          <div className="modal-icon">
+            <School size={32} />
+          </div>
+          <div>
+            <h2>{school.name}</h2>
+            <p className="modal-subtitle">{school.fullName}</p>
+          </div>
+        </div>
+
+        <div className="modal-grid">
+          <div className="modal-info-col">
+            <div className="modal-meta-row">
+              <span className="modal-meta-item">
+                <MapPin size={16} /> <b>Estado:</b> {school.state}
+              </span>
+              <span className="modal-meta-item">
+                <Users size={16} /> <b>Participantes:</b> {school.participants}
+              </span>
+            </div>
+            
+            <div className="modal-stats-box">
+              <div className="modal-stat">
+                <span className="modal-stat-val">{school.visits}</span>
+                <span className="modal-stat-lbl">ATENDIMENTOS</span>
+              </div>
+              <div className="modal-stat">
+                <span className="modal-stat-val">{fmtH(school.hours)}h</span>
+                <span className="modal-stat-lbl">HORAS TOTAIS</span>
+              </div>
+            </div>
+
+            <p className="modal-text"><b>Responsável:</b> {school.responsible}</p>
+            <p className="modal-text"><b>Segmentos:</b> {school.segments.join(', ')}</p>
+
+            <div className="modal-highlights">
+              <div className="m-h-box m-h-green">
+                <b>Destaque:</b>
+                <p>{school.highlight}</p>
+              </div>
+              <div className="m-h-box m-h-red">
+                <b>Atenção:</b>
+                <p>{school.attention}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="modal-chart-col">
+            <h3>DISTRIBUIÇÃO DE AÇÕES</h3>
+            <div className="modal-mini-chart">
+              {school.actions.filter(a => a.count > 0).map(a => (
+                <div key={a.label} className="modal-chart-row">
+                  <span className="modal-chart-label" title={a.label}>{a.label}</span>
+                  <div className="modal-chart-bar-wrap">
+                    <div 
+                      className="modal-chart-bar" 
+                      style={{ 
+                        width: `${(a.count / maxActionCount) * 100}%`,
+                        background: '#007EC3'
+                      }} 
+                    />
+                  </div>
+                  <span className="modal-chart-value">{a.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>Fechar</button>
+          <button className="btn-primary" onClick={() => { onNavigateToOverview(school); onClose(); }}>
+            Ver Detalhes Completos <ArrowUpRight size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 /* ═══════════════════════════════════════════════════════════════
    MAIN APP
    ═══════════════════════════════════════════════════════════════ */
@@ -768,6 +859,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState('Janeiro a Junho / 2026');
   const [stateFilter, setStateFilter] = useState('ALL');
+  const [selectedSchoolModal, setSelectedSchoolModal] = useState(null);
 
   const toggleDateFilter = () => {
     const options = ['Janeiro a Junho / 2026', 'Todo o Período / 2026', 'Últimos 30 Dias'];
@@ -809,7 +901,7 @@ export default function App() {
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-logo" onClick={() => navigate('overview')} style={{ cursor: 'pointer' }}>
-          <img src="/zoom-logo.png" alt="ZOOM Education for Life" className="sidebar-logo-img" />
+          <img src="./zoom-logo.png" alt="ZOOM Education for Life" className="sidebar-logo-img" />
         </div>
         <nav className="sidebar-nav">
           {sidebarItems.map(item => (
@@ -851,7 +943,13 @@ export default function App() {
         {page === 'overview' && <OverviewPage totals={totals} selectedSchool={selectedSchool} setSelectedSchool={setSelectedSchool} schoolsByState={schoolsByState} onNavigate={navigate} />}
         {page === 'evolution' && <EvolutionPage />}
         {page === 'actions' && <ActionsPage />}
-        {page === 'units' && <UnitsPage onSelect={selectSchoolAndNavigate} schoolsList={filteredSchools} />}
+        {page === 'units' && (
+          <UnitsPage 
+            onSelect={selectSchoolAndNavigate} 
+            schoolsList={filteredSchools} 
+            onOpenModal={setSelectedSchoolModal}
+          />
+        )}
         {page === 'participants' && <ParticipantsPage />}
         {page === 'attendance' && <AttendancePage schoolsList={filteredSchools} />}
         {page === 'reports' && <ReportsPage onNavigate={navigate} />}
@@ -861,10 +959,18 @@ export default function App() {
           <span><Calendar size={14} /> Dados atualizados em 23/06/2026 11:30</span>
           <span className="footer-source">
             Fonte: Sistema de Atendimento ZOOM
-            <img src="/zoom-logo.png" alt="ZOOM" className="footer-logo-img" />
+            <img src="./zoom-logo.png" alt="ZOOM" className="footer-logo-img" />
           </span>
         </footer>
       </main>
+
+      {selectedSchoolModal && (
+        <SchoolModal 
+          school={selectedSchoolModal} 
+          onClose={() => setSelectedSchoolModal(null)} 
+          onNavigateToOverview={selectSchoolAndNavigate}
+        />
+      )}
     </div>
   );
 }
